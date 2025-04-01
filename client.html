@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat App</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f5f5;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .app-container {
+            max-width: 800px;
+            width: 100%;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            background-color: white;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .app-header {
+            background-color: #4c68d7;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .app-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+        
+        .connection-status {
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+        }
+        
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-connected {
+            background-color: #2ecc71;
+        }
+        
+        .status-disconnected {
+            background-color: #e74c3c;
+        }
+        
+        .messages-container {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .message {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            position: relative;
+            word-wrap: break-word;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .sent-message {
+            align-self: flex-end;
+            background-color: #e3effd;
+            color: #333;
+            border-bottom-right-radius: 4px;
+        }
+        
+        .received-message {
+            align-self: flex-start;
+            background-color: #f0f0f0;
+            color: #333;
+            border-bottom-left-radius: 4px;
+        }
+        
+        .system-message {
+            align-self: center;
+            background-color: #f9f9f9;
+            color: #666;
+            font-size: 0.85rem;
+            padding: 8px 14px;
+            border-radius: 16px;
+            max-width: 90%;
+        }
+        
+        .message-time {
+            font-size: 0.7rem;
+            color: #888;
+            margin-top: 6px;
+            text-align: right;
+        }
+        
+        .input-area {
+            padding: 15px;
+            background-color: white;
+            border-top: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        #messageInput {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #ddd;
+            border-radius: 24px;
+            outline: none;
+            font-size: 1rem;
+            transition: border 0.3s ease;
+        }
+        
+        #messageInput:focus {
+            border-color: #4c68d7;
+        }
+        
+        #sendButton {
+            background-color: #4c68d7;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 46px;
+            height: 46px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        
+        #sendButton:hover {
+            background-color: #3b53b9;
+        }
+        
+        #sendButton:active {
+            transform: scale(0.95);
+        }
+        
+        @media (max-width: 600px) {
+            .app-container {
+                height: 100%;
+                box-shadow: none;
+            }
+            
+            .message {
+                max-width: 85%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="app-header">
+            <div class="app-title">WebSocket Chat</div>
+            <div class="connection-status">
+                <div id="statusIndicator" class="status-indicator status-disconnected"></div>
+                <span id="connectionStatus">Disconnected</span>
+            </div>
+        </div>
+        
+        <div id="messages" class="messages-container">
+            <!-- Messages  here -->
+        </div>
+        
+        <div class="input-area">
+            <input type="text" id="messageInput" placeholder="Type a message..." />
+            <button id="sendButton">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+
+    <script>
+      const messageInput = document.getElementById('messageInput');
+      const sendButton = document.getElementById('sendButton');
+      const messagesDiv = document.getElementById('messages');
+      const statusIndicator = document.getElementById('statusIndicator');
+      const connectionStatus = document.getElementById('connectionStatus');
+      
+     
+      const clientId = 'client_' + Math.random().toString(36).substr(2, 9);
+      
+     
+      const ws = new WebSocket('ws://IP-ADDRESS:8765');
+
+      ws.onopen = () => {
+        console.log('Connected to the server');
+        statusIndicator.classList.remove('status-disconnected');
+        statusIndicator.classList.add('status-connected');
+        connectionStatus.textContent = 'Connected';
+        
+        displaySystemMessage('Connected to server');
+      };
+
+      ws.onmessage = (event) => {
+        console.log('Message from server:', event.data);
+        
+        try {
+          const messageData = JSON.parse(event.data);
+          if (messageData.sender !== clientId) {
+            displayReceivedMessage(messageData.text);
+          }
+        } catch (e) {
+          displayReceivedMessage(event.data);
+        }
+      };
+
+      ws.onclose = () => {
+        console.log('Disconnected from the server');
+        statusIndicator.classList.remove('status-connected');
+        statusIndicator.classList.add('status-disconnected');
+        connectionStatus.textContent = 'Disconnected';
+        displaySystemMessage('Disconnected from server');
+      };
+
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        displaySystemMessage(`Error: ${error.message || 'WebSocket error'}`);
+      };
+      function getCurrentTime() {
+        const now = new Date();
+        return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+      }
+
+      function displaySystemMessage(message) {
+        const messageElement = document.createElement('div');
+        messageElement.className = 'message system-message';
+        messageElement.textContent = message;
+        messagesDiv.appendChild(messageElement);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      }
+
+      function displaySentMessage(message) {
+        const messageElement = document.createElement('div');
+        messageElement.className = 'message sent-message';
+        
+        const messageContent = document.createElement('div');
+        messageContent.textContent = message;
+        
+        const timeElement = document.createElement('div');
+        timeElement.className = 'message-time';
+        timeElement.textContent = getCurrentTime();
+        
+        messageElement.appendChild(messageContent);
+        messageElement.appendChild(timeElement);
+        
+        messagesDiv.appendChild(messageElement);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      }
+
+      function displayReceivedMessage(message) {
+        const messageElement = document.createElement('div');
+        messageElement.className = 'message received-message';
+        
+        const messageContent = document.createElement('div');
+        messageContent.textContent = message;
+        
+        const timeElement = document.createElement('div');
+        timeElement.className = 'message-time';
+        timeElement.textContent = getCurrentTime();
+        
+        messageElement.appendChild(messageContent);
+        messageElement.appendChild(timeElement);
+        
+        messagesDiv.appendChild(messageElement);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      }
+
+      sendButton.addEventListener('click', () => {
+        const messageText = messageInput.value;
+        if (messageText.trim() !== '') {
+          const messageObj = {
+            sender: clientId,
+            text: messageText
+          };
+          ws.send(JSON.stringify(messageObj));
+          
+          
+          displaySentMessage(messageText);
+          messageInput.value = '';
+        }
+      });
+
+      messageInput.addEventListener('keypress', (event) => {
+          if (event.key === 'Enter') {
+              sendButton.click(); 
+          }
+      });
+    </script>
+</body>
+</html>
