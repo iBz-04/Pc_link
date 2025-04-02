@@ -210,7 +210,7 @@
       const clientId = 'client_' + Math.random().toString(36).substr(2, 9);
       
      
-      const ws = new WebSocket('ws://IP-ADDRESS:8765');
+      const ws = new WebSocket('ws://192.168.1.17:8765');
 
       ws.onopen = () => {
         console.log('Connected to the server');
@@ -226,10 +226,14 @@
         
         try {
           const messageData = JSON.parse(event.data);
-          if (messageData.sender !== clientId) {
+          if (messageData.sender === clientId) {
+            return;
+          }
+          if (messageData.text) {
             displayReceivedMessage(messageData.text);
           }
         } catch (e) {
+          console.log('Received raw message:', event.data);
           displayReceivedMessage(event.data);
         }
       };
@@ -296,17 +300,22 @@
       }
 
       sendButton.addEventListener('click', () => {
-        const messageText = messageInput.value;
-        if (messageText.trim() !== '') {
+        const messageText = messageInput.value.trim();
+        if (messageText !== '') {
           const messageObj = {
             sender: clientId,
-            text: messageText
+            text: messageText,
+            timestamp: new Date().toISOString()
           };
-          ws.send(JSON.stringify(messageObj));
           
-          
-          displaySentMessage(messageText);
-          messageInput.value = '';
+          try {
+            ws.send(JSON.stringify(messageObj));
+            displaySentMessage(messageText);
+            messageInput.value = '';
+          } catch (error) {
+            console.error('Error sending message:', error);
+            displaySystemMessage('Failed to send message. Please try again.');
+          }
         }
       });
 

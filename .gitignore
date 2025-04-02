@@ -13,6 +13,7 @@ build/
 # Virtual environments
 venv/
 env/
+.venv
 ENV/
 
 # IDE specific files
@@ -27,3 +28,4 @@ ENV/
 # Testing
 .coverage
 htmlcov/
+
