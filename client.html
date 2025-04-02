@@ -175,6 +175,52 @@
                 max-width: 85%;
             }
         }
+        
+        .history-message {
+            align-self: center;
+            background-color: #f8f9fa;
+            color: #666;
+            font-size: 0.85rem;
+            padding: 6px 12px;
+            border-radius: 14px;
+            max-width: 80%;
+            font-style: italic;
+            margin: 8px 0;
+        }
+        
+        .history-divider {
+            text-align: center;
+            margin: 15px 0;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+        
+        .history-divider span {
+            position: relative;
+            display: inline-block;
+            color: #888;
+            font-size: 0.8rem;
+        }
+        
+        .history-divider span:before,
+        .history-divider span:after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            width: 100px;
+            height: 1px;
+            background-color: #ddd;
+        }
+        
+        .history-divider span:before {
+            right: 100%;
+            margin-right: 10px;
+        }
+        
+        .history-divider span:after {
+            left: 100%;
+            margin-left: 10px;
+        }
     </style>
 </head>
 <body>
@@ -206,11 +252,12 @@
       const statusIndicator = document.getElementById('statusIndicator');
       const connectionStatus = document.getElementById('connectionStatus');
       
-     
       const clientId = 'client_' + Math.random().toString(36).substr(2, 9);
       
-     
-      const ws = new WebSocket('ws://192.168.1.17:8765');
+      const ws = new WebSocket('ws://IP_ADDRESS:8765');
+      
+      
+      let displayingHistory = false;
 
       ws.onopen = () => {
         console.log('Connected to the server');
@@ -226,10 +273,29 @@
         
         try {
           const messageData = JSON.parse(event.data);
-          if (messageData.sender === clientId) {
+          
+          
+          if (messageData.type === 'history_start') {
+            displayingHistory = true;
+            displayHistoryDivider('Message History');
+            return;
+          } else if (messageData.type === 'history_end') {
+            displayingHistory = false;
+            displayHistoryDivider('Current Messages');
             return;
           }
-          if (messageData.text) {
+          
+          if (messageData.sender === clientId && !displayingHistory) {
+            return;
+          }
+        
+          if (messageData.sender === 'system') {
+            displaySystemMessage(messageData.text);
+          } else if (displayingHistory) {
+            displayHistoryMessage(messageData.text);
+          } else if (messageData.sender === clientId) {
+            displaySentMessage(messageData.text);
+          } else {
             displayReceivedMessage(messageData.text);
           }
         } catch (e) {
@@ -250,6 +316,25 @@
         console.error('WebSocket error:', error);
         displaySystemMessage(`Error: ${error.message || 'WebSocket error'}`);
       };
+      
+      function displayHistoryDivider(text) {
+        const divider = document.createElement('div');
+        divider.className = 'history-divider';
+        const span = document.createElement('span');
+        span.textContent = text;
+        divider.appendChild(span);
+        messagesDiv.appendChild(divider);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      }
+      
+      function displayHistoryMessage(message) {
+        const messageElement = document.createElement('div');
+        messageElement.className = 'message history-message';
+        messageElement.textContent = message;
+        messagesDiv.appendChild(messageElement);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      }
+
       function getCurrentTime() {
         const now = new Date();
         return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;

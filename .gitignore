@@ -13,6 +13,7 @@ build/
 # Virtual environments
 venv/
 env/
+.venv/
 .venv
 ENV/
 
@@ -28,4 +29,6 @@ ENV/
 # Testing
 .coverage
 htmlcov/
+
+*.db
 

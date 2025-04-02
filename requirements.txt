@@ -1,1 +1,2 @@
-websockets
+websockets==11.0.3
+sqlite3==2.6.0

@@ -88,6 +88,39 @@
             text-align: center;
         }
         
+        .history-message {
+            background-color: #f0f1f2;
+            border-left-color: #bdc3c7;
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            font-style: italic;
+        }
+        
+        .history-divider {
+            margin: 20px 0;
+            text-align: center;
+            position: relative;
+        }
+        
+        .history-divider:before {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background-color: #e0e0e0;
+        }
+        
+        .history-divider span {
+            position: relative;
+            display: inline-block;
+            padding: 0 15px;
+            background-color: var(--message-bg);
+            color: #95a5a6;
+            font-size: 0.8rem;
+        }
+        
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
@@ -131,19 +164,41 @@
             hostname = 'localhost';
         }
         const ws = new WebSocket(`ws://${hostname}:8765`);
+        
+    
+        let displayingHistory = false;
+        
         setupWebSocket(ws);
         
         function setupWebSocket(ws) {
             ws.onmessage = (event) => {
                 try {
                     const messageData = JSON.parse(event.data);
-                    displayMessage(messageData.text);
+                    
+                   
+                    if (messageData.type === 'history_start') {
+                        displayingHistory = true;
+                        displayHistoryDivider('Message History');
+                        return;
+                    } else if (messageData.type === 'history_end') {
+                        displayingHistory = false;
+                        displayHistoryDivider('Current Messages');
+                        return;
+                    }
+                    
+                    
+                    if (messageData.sender === 'system') {
+                        displayMessage(messageData.text, 'system');
+                    } else if (displayingHistory) {
+                        displayMessage(messageData.text, 'history');
+                    } else {
+                        displayMessage(messageData.text);
+                    }
                 } catch (e) {
                     displayMessage(event.data);
                 }
             };
             
-            // Handle connection status
             ws.onopen = () => {
                 statusIndicator.classList.add('connected');
                 displayMessage('Connected to message server', 'system');
@@ -159,14 +214,35 @@
                 displayMessage(`Error: ${error.message || 'Connection failed'}`, 'system');
             };
         }
+        
+        function displayHistoryDivider(text) {
+            const dividerElement = document.createElement('div');
+            dividerElement.className = 'history-divider';
+            
+            const spanElement = document.createElement('span');
+            spanElement.textContent = text;
+            
+            dividerElement.appendChild(spanElement);
+            messagesDiv.appendChild(dividerElement);
+            
+           
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
 
         function displayMessage(message, type = 'regular') {
             const messageElement = document.createElement('div');
-            messageElement.className = type === 'system' ? 'message system-message' : 'message';
+            
+            if (type === 'system') {
+                messageElement.className = 'message system-message';
+            } else if (type === 'history') {
+                messageElement.className = 'message history-message';
+            } else {
+                messageElement.className = 'message';
+            }
+            
             messageElement.textContent = message;
             messagesDiv.appendChild(messageElement);
             
-            // Auto-scroll to bottom
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
     </script>
